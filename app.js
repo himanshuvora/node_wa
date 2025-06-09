@@ -11,8 +11,8 @@ app.use(express.json());
 const https = require('https');
 
 const options = {
-  key: fs.readFileSync('/etc/letsencrypt/live/hottiealert.com-0002/privkey.pem'),
-  cert: fs.readFileSync('/etc/letsencrypt/live/hottiealert.com-0002/fullchain.pem')
+  key: fs.readFileSync('/etc/letsencrypt/live/clients.evotters.com/privkey.pem'),
+  cert: fs.readFileSync('/etc/letsencrypt/live/clients.evotters.com/fullchain.pem')
 };
 
 https.createServer(options, app).listen(3000, () => {
