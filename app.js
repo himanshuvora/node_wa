@@ -25,7 +25,7 @@ async function createSession(sessionId) {
   const sock = makeWASocket({
     auth: state,
     printQRInTerminal: false,
-    browser: ['LocalhostApp', 'Chrome', '123.0.0.1'],
+    browser: ['LocalhostApp', 'Chrome', '13.233.170.46'],
     markOnlineOnConnect: false
   });
 
@@ -44,7 +44,7 @@ async function createSession(sessionId) {
 
       if (reason === DisconnectReason.loggedOut || reason === 515 || reason === 440) {
         console.log(`[${sessionId}] session invalid. Resetting...`);
-        deleteSessionFolder(sessionId);
+        //deleteSessionFolder(sessionId);
       } else {
         console.log(`[${sessionId}] reconnecting...`);
         createSession(sessionId);
