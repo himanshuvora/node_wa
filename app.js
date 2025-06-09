@@ -1,4 +1,3 @@
-// app.js (Node.js server for multiple WhatsApp sessions)
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -10,22 +9,28 @@ const app = express();
 app.use(express.json());
 
 const sessions = {}; // key: token, value: sock instance
-const tokens = {};   // key: sessionId (user id), value: token
+const tokens = {};   // key: sessionId, value: token
+const blockTimestamps = {}; // sessionId -> timestamp of last 515 error
 
+const COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes
 const SESSION_DIR = path.join(__dirname, 'sessions');
 if (!fs.existsSync(SESSION_DIR)) fs.mkdirSync(SESSION_DIR);
 
-function getAuthFilePath(sessionId) {
-  return path.join(SESSION_DIR, `${sessionId}.json`);
+function getAuthFolderPath(sessionId) {
+  return path.join(SESSION_DIR, sessionId);
+}
+
+function getQRPath(sessionId) {
+  return path.join(SESSION_DIR, `${sessionId}.qr`);
 }
 
 async function createSession(sessionId) {
   const { state, saveCreds } = await useMultiFileAuthState(getAuthFolderPath(sessionId));
-  //const sock = makeWASocket({ auth: state, printQRInTerminal: false });
+
   const sock = makeWASocket({
     auth: state,
     printQRInTerminal: false,
-    browser: ['LocalhostApp', 'Chrome', '13.233.170.46'],
+    browser: ['Baileys', 'MacOS', '10.15.7'],
     markOnlineOnConnect: false
   });
 
@@ -35,7 +40,7 @@ async function createSession(sessionId) {
     const { connection, qr, lastDisconnect } = update;
 
     if (qr) {
-      fs.writeFileSync(path.join(SESSION_DIR, `${sessionId}.qr`), qr);
+      fs.writeFileSync(getQRPath(sessionId), qr);
     }
 
     if (connection === 'close') {
@@ -43,8 +48,11 @@ async function createSession(sessionId) {
       console.log(`[${sessionId}] disconnected with reason:`, reason);
 
       if (reason === DisconnectReason.loggedOut || reason === 515 || reason === 440) {
-        console.log(`[${sessionId}] session invalid. Resetting...`);
-        //deleteSessionFolder(sessionId);
+        if (reason === 515) {
+          blockTimestamps[sessionId] = Date.now();
+          console.log(`[${sessionId}] temporarily blocked. Cooldown started.`);
+        }
+        return;
       } else {
         console.log(`[${sessionId}] reconnecting...`);
         createSession(sessionId);
@@ -64,7 +72,7 @@ async function createSession(sessionId) {
 
 function deleteSessionFolder(sessionId) {
   const folder = getAuthFolderPath(sessionId);
-  const qrPath = path.join(SESSION_DIR, `${sessionId}.qr`);
+  const qrPath = getQRPath(sessionId);
 
   if (fs.existsSync(qrPath)) fs.unlinkSync(qrPath);
 
@@ -77,16 +85,46 @@ function deleteSessionFolder(sessionId) {
   }
 }
 
-
+// Start session (after checking cooldown)
 app.post('/start/:sessionId', async (req, res) => {
   const sessionId = req.params.sessionId;
+
+  if (blockTimestamps[sessionId]) {
+    const elapsed = Date.now() - blockTimestamps[sessionId];
+    if (elapsed < COOLDOWN_MS) {
+      const remaining = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+      return res.status(429).send({ error: `Blocked by WhatsApp. Retry in ${remaining} seconds.` });
+    } else {
+      delete blockTimestamps[sessionId];
+    }
+  }
+
   await createSession(sessionId);
   res.send({ success: true });
 });
 
+// Check QR availability & cooldown status
+app.get('/status/:sessionId', (req, res) => {
+  const sessionId = req.params.sessionId;
+
+  if (blockTimestamps[sessionId]) {
+    const elapsed = Date.now() - blockTimestamps[sessionId];
+    if (elapsed < COOLDOWN_MS) {
+      return res.send({
+        blocked: true,
+        remaining: Math.ceil((COOLDOWN_MS - elapsed) / 1000)
+      });
+    }
+  }
+
+  const qrAvailable = fs.existsSync(getQRPath(sessionId));
+  res.send({ blocked: false, qrAvailable });
+});
+
+// Get QR code
 app.get('/qr/:sessionId', (req, res) => {
   const sessionId = req.params.sessionId;
-  const qrPath = path.join(SESSION_DIR, `${sessionId}.qr`);
+  const qrPath = getQRPath(sessionId);
   if (fs.existsSync(qrPath)) {
     const qr = fs.readFileSync(qrPath, 'utf-8');
     res.send({ qr });
@@ -95,6 +133,7 @@ app.get('/qr/:sessionId', (req, res) => {
   }
 });
 
+// Get token
 app.get('/token/:sessionId', (req, res) => {
   const sessionId = req.params.sessionId;
   if (tokens[sessionId]) {
@@ -104,6 +143,7 @@ app.get('/token/:sessionId', (req, res) => {
   }
 });
 
+// Send message
 app.post('/send', async (req, res) => {
   const { token, number, message } = req.body;
 
@@ -119,14 +159,11 @@ app.post('/send', async (req, res) => {
   }
 });
 
+// Reset session
 app.delete('/reset/:sessionId', (req, res) => {
   const sessionId = req.params.sessionId;
   deleteSessionFolder(sessionId);
   res.send({ success: true });
 });
-
-function getAuthFolderPath(sessionId) {
-  return path.join(SESSION_DIR, sessionId);
-}
 
 app.listen(3000, () => console.log('Multi-user WhatsApp API running on port 3000'));
