@@ -8,6 +8,18 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 app.use(express.json());
 
+const https = require('https');
+const fs = require('fs');
+
+const options = {
+  key: fs.readFileSync('/etc/letsencrypt/live/hottiealert.com-0002/privkey.pem'),
+  cert: fs.readFileSync('/etc/letsencrypt/live/hottiealert.com-0002/fullchain.pem')
+};
+
+https.createServer(options, app).listen(3000, () => {
+  console.log('WhatsApp API running on HTTPS port 3000');
+});
+
 const sessions = {}; // key: token, value: sock instance
 const tokens = {};   // key: sessionId, value: token
 const blockTimestamps = {}; // sessionId -> timestamp of last 515 error
@@ -38,9 +50,16 @@ async function createSession(sessionId) {
 
   sock.ev.on('connection.update', (update) => {
     const { connection, qr, lastDisconnect } = update;
+    console.log(`[${sessionId}] Connection update:`, connection);
+
+    if (lastDisconnect?.error) {
+      const reason = new Boom(lastDisconnect.error)?.output?.statusCode;
+      console.log(`[${sessionId}] Disconnected. Reason:`, reason, lastDisconnect.error.message);
+    }
 
     if (qr) {
-      fs.writeFileSync(getQRPath(sessionId), qr);
+      fs.writeFileSync(path.join(SESSION_DIR, `${sessionId}.qr`), qr);
+      console.log(`[${sessionId}] QR updated`);
     }
 
     if (connection === 'close') {
