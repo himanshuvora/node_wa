@@ -9,7 +9,6 @@ const app = express();
 app.use(express.json());
 
 const https = require('https');
-const fs = require('fs');
 
 const options = {
   key: fs.readFileSync('/etc/letsencrypt/live/hottiealert.com-0002/privkey.pem'),
