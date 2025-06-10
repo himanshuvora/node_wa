@@ -8,15 +8,15 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 app.use(express.json());
 
-const https = require('https');
+const http = require('http');
 
 const options = {
   key: fs.readFileSync('/etc/letsencrypt/live/clients.evotters.com/privkey.pem'),
   cert: fs.readFileSync('/etc/letsencrypt/live/clients.evotters.com/fullchain.pem')
 };
 
-https.createServer(options, app).listen(3000, () => {
-  console.log('WhatsApp API running on HTTPS port 3000');
+http.createServer(options, app).listen(3000, () => {
+  console.log('WhatsApp API running on HTTP port 3000');
 });
 
 const sessions = {}; // key: token, value: sock instance
