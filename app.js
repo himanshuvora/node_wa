@@ -15,16 +15,16 @@ app.use((req, res, next) => {
   next();
 });
 
-const http = require('http');
+// const http = require('http');
 
-const options = {
-  key: fs.readFileSync('/etc/letsencrypt/live/clients.evotters.com/privkey.pem'),
-  cert: fs.readFileSync('/etc/letsencrypt/live/clients.evotters.com/fullchain.pem')
-};
+// const options = {
+//   key: fs.readFileSync('/etc/letsencrypt/live/clients.evotters.com/privkey.pem'),
+//   cert: fs.readFileSync('/etc/letsencrypt/live/clients.evotters.com/fullchain.pem')
+// };
 
-http.createServer(options, app).listen(3000, () => {
-  console.log('WhatsApp API running on HTTP port 3000');
-});
+// http.createServer(options, app).listen(3000, () => {
+//   console.log('WhatsApp API running on HTTP port 3000');
+// });
 
 const sessions = {}; // key: token, value: sock instance
 const tokens = {};   // key: sessionId, value: token
