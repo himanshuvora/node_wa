@@ -82,7 +82,7 @@
       const id = document.getElementById('sessionId').value;
       const res = await fetch(`/status/${id}`);
       const data = await res.json();
-
+      console.log("Session Status:", data);
       const box = document.getElementById('qrBox');
       box.innerHTML = '';
       if (data.qrAvailable) {
