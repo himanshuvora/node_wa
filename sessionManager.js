@@ -1,44 +1,50 @@
-const { default: makeWASocket, makeCacheableSignalKeyStore, useSingleFileAuthState } = require('@whiskeysockets/baileys');
-const { default: NodeCache } = require('node-cache');
+const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
 const fs = require('fs');
 const path = require('path');
 
 const sessions = {};
 
-async function getSession(sessionId) {
-  if (sessions[sessionId]) return sessions[sessionId];
-
-  const sessionFile = path.join(__dirname, 'sessions', `${sessionId}.json`);
-  if (!fs.existsSync('sessions')) fs.mkdirSync('sessions');
-
-  const { state, saveState } = useSingleFileAuthState(sessionFile);
+async function createSession(sessionId) {
+  const sessionFolder = path.join(__dirname, 'sessions', sessionId);
+  const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
 
   const sock = makeWASocket({
-    auth: {
-      creds: state.creds,
-      keys: makeCacheableSignalKeyStore(state.keys, new NodeCache())
-    },
-    browser: ['Baileys', 'Chrome', '120.0.0.0']
+    auth: state,
+    browser: ['Baileys', 'MacOS', '10.15.7']
   });
 
-  const session = { sock, qr: null };
-  sessions[sessionId] = session;
+  sock.ev.on('creds.update', saveCreds);
 
-  sock.ev.on('creds.update', saveState);
-
-  sock.ev.on('connection.update', ({ connection, qr }) => {
+  sock.ev.on('connection.update', (update) => {
+    const { connection, qr } = update;
     console.log(`[${sessionId}] Connection: ${connection}`);
+
     if (qr) {
-      session.qr = qr;
+      sessions[sessionId].qr = qr;
       console.log(`[${sessionId}] QR updated`);
     }
+
     if (connection === 'close') {
       delete sessions[sessionId];
-      console.log(`[${sessionId}] Session closed`);
     }
   });
 
-  return session;
+  sessions[sessionId] = { sock, qr: null };
 }
 
-module.exports = { getSession };
+async function getSession(sessionId) {
+  if (!sessions[sessionId]) {
+    await createSession(sessionId);
+  }
+  return sessions[sessionId];
+}
+
+function deleteSession(sessionId) {
+  const sessionPath = path.join(__dirname, 'sessions', sessionId);
+  if (fs.existsSync(sessionPath)) {
+    fs.rmSync(sessionPath, { recursive: true, force: true });
+  }
+  delete sessions[sessionId];
+}
+
+module.exports = { getSession, deleteSession };
