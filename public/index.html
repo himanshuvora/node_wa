@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WhatsApp API Control Panel</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 600px;
+      margin: auto;
+    }
+    input, button {
+      padding: 8px;
+      margin: 5px 0;
+      width: 100%;
+    }
+    #qrBox img {
+      margin-top: 10px;
+      border: 1px solid #ccc;
+    }
+    .section {
+      margin-bottom: 25px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    h3 {
+      margin-top: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>WhatsApp API Dashboard</h2>
+
+  <!-- Section 1: Scan QR -->
+  <div class="section">
+    <h3>Scan QR / Check Status</h3>
+    <input type="text" id="sessionId" placeholder="Enter Session ID" />
+    <button onclick="getQR()">Get QR / Check Connection</button>
+    <div id="qrBox"></div>
+  </div>
+
+  <!-- Section 2: Send Message -->
+  <div class="section">
+    <h3>Send Message</h3>
+    <input type="text" id="sendSession" placeholder="Session ID" />
+    <input type="text" id="sendTo" placeholder="Phone Number with country code (e.g. 919876543210)" />
+    <input type="text" id="sendMsg" placeholder="Message text" />
+    <button onclick="sendMessage()">Send</button>
+    <div id="sendStatus"></div>
+  </div>
+
+  <!-- Section 3: Check Message Receipt -->
+  <div class="section">
+    <h3>Check Read Receipt</h3>
+    <input type="text" id="receiptSession" placeholder="Session ID" />
+    <input type="text" id="receiptMsgId" placeholder="Message ID" />
+    <button onclick="checkReceipt()">Check</button>
+    <div id="receiptStatus"></div>
+  </div>
+
+  <!-- Section 4: Session Expiry -->
+  <div class="section">
+    <h3>Check Session Expiry</h3>
+    <input type="text" id="expirySession" placeholder="Session ID" />
+    <button onclick="checkExpiry()">Check</button>
+    <div id="expiryStatus"></div>
+  </div>
+
+  <!-- Section 5: Delete Session -->
+  <div class="section">
+    <h3>Delete Session</h3>
+    <input type="text" id="deleteSession" placeholder="Session ID" />
+    <button onclick="deleteSession()">Delete</button>
+    <div id="deleteStatus"></div>
+  </div>
+
+  <script>
+    async function getQR() {
+      const id = document.getElementById('sessionId').value;
+      const res = await fetch(`/status/${id}`);
+      const data = await res.json();
+
+      const box = document.getElementById('qrBox');
+      box.innerHTML = '';
+      if (data.qrAvailable) {
+        box.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(data.qr)}&size=200x200" />`;
+      } else if (data.registered) {
+        box.innerText = '✅ Already connected!';
+      } else {
+        box.innerText = '❌ Not connected yet. Try again shortly.';
+      }
+    }
+
+    async function sendMessage() {
+      const id = document.getElementById('sendSession').value;
+      const to = document.getElementById('sendTo').value;
+      const msg = document.getElementById('sendMsg').value;
+      const res = await fetch(`/send/${id}/${to}/${encodeURIComponent(msg)}`);
+      const data = await res.json();
+      document.getElementById('sendStatus').innerText = data.message || JSON.stringify(data);
+    }
+
+    async function checkReceipt() {
+      const id = document.getElementById('receiptSession').value;
+      const msgId = document.getElementById('receiptMsgId').value;
+      const res = await fetch(`/receipt/${id}/${msgId}`);
+      const data = await res.json();
+      document.getElementById('receiptStatus').innerText = JSON.stringify(data);
+    }
+
+    async function checkExpiry() {
+      const id = document.getElementById('expirySession').value;
+      const res = await fetch(`/expire/${id}`);
+      const data = await res.json();
+      document.getElementById('expiryStatus').innerText = data.expired ? '❌ Session Expired' : '✅ Session Active';
+    }
+
+    async function deleteSession() {
+      const id = document.getElementById('deleteSession').value;
+      const res = await fetch(`/delete/${id}`);
+      const data = await res.json();
+      document.getElementById('deleteStatus').innerText = data.message;
+    }
+  </script>
+
+</body>
+</html>

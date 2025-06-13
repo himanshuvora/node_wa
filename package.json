@@ -11,7 +11,9 @@
   "description": "",
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.18",
+    "cors": "^2.8.5",
     "express": "^5.1.0",
+    "node-cache": "^5.1.2",
     "uuid": "^11.1.0"
   }
 }
