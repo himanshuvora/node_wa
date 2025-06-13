@@ -100,6 +100,7 @@
       const msg = document.getElementById('sendMsg').value;
       const res = await fetch(`/send/${id}/${to}/${encodeURIComponent(msg)}`);
       const data = await res.json();
+      console.log("Session:", data);
       document.getElementById('sendStatus').innerText = data.message || JSON.stringify(data);
     }
 

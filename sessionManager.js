@@ -16,7 +16,7 @@ async function createSession(sessionId) {
   sock.ev.on('creds.update', saveCreds);
 
   sock.ev.on('connection.update', (update) => {
-    const { connection, qr } = update;
+    const { connection, qr, lastDisconnect } = update;
     console.log(`[${sessionId}] Connection: ${connection}`);
 
     if (qr) {
@@ -25,7 +25,14 @@ async function createSession(sessionId) {
     }
 
     if (connection === 'close') {
-      delete sessions[sessionId];
+      const reason = lastDisconnect?.error?.output?.payload?.message || 'unknown';
+      console.log(`[${sessionId}] Disconnected. Reason: ${reason}`);
+      delete sessions[sessionId]; // clear memory reference
+    }
+
+    if (connection === 'open') {
+      console.log(`[${sessionId}] WhatsApp connected`);
+      sessions[sessionId].qr = null; // clear QR once connected
     }
   });
 
@@ -43,6 +50,7 @@ function deleteSession(sessionId) {
   const sessionPath = path.join(__dirname, 'sessions', sessionId);
   if (fs.existsSync(sessionPath)) {
     fs.rmSync(sessionPath, { recursive: true, force: true });
+    console.log(`[${sessionId}] Session files deleted`);
   }
   delete sessions[sessionId];
 }
